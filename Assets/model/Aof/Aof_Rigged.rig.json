@@ -1,0 +1,39 @@
+{
+  "source": "Assets\\model\\Aof\\Aof_3D.glb",
+  "output": "Assets\\model\\Aof\\Aof_Rigged.glb",
+  "vertices": 63766,
+  "disconnected_contact_faces": 82,
+  "bones": [
+    "Root",
+    "Hips",
+    "Spine",
+    "Chest",
+    "Neck",
+    "Head",
+    "LeftShoulder",
+    "LeftUpperArm",
+    "LeftForearm",
+    "LeftHand",
+    "LeftUpperLeg",
+    "LeftLowerLeg",
+    "LeftFoot",
+    "LeftToes",
+    "RightShoulder",
+    "RightUpperArm",
+    "RightForearm",
+    "RightHand",
+    "RightUpperLeg",
+    "RightLowerLeg",
+    "RightFoot",
+    "RightToes"
+  ],
+  "clips": [
+    "Idle",
+    "Walk",
+    "Run",
+    "Jump",
+    "Fall"
+  ],
+  "height_m": 1.8,
+  "weight_sum_error": 1.7881393432617188e-07
+}

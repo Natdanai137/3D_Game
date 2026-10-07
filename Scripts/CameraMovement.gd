@@ -1,31 +1,32 @@
-# ----------------------------------------------------------------------------------- #
-# -------------- FEEL FREE TO USE IN ANY PROJECT, COMMERCIAL OR NON-COMMERCIAL ------ #
-# ---------------------- 3D PLATFORMER CONTROLLER BY SD STUDIOS --------------------- #
-# ---------------------------- ATTRIBUTION NOT REQUIRED ----------------------------- #
-# ----------------------------------------------------------------------------------- #
-
 extends Node3D
 
-# ---------- VARIABLES ---------- #
+@export var mouse_sensitivity: float = 0.18
+@export var follow_speed: float = 18.0
+@export var target_height: float = 1.25
+@onready var player: CharacterBody3D = get_parent()
+@onready var arm: SpringArm3D = $SpringArm3D
 
-# Control Mouse Sensitivity through inspector or from here
-@export var mouse_sensitivity := 0.2
-
-# Assign Camera Node here it might be named different in your Project
-@onready var camera = $Camera3D
-
-# ---------- FUNCTIONS ---------- #
-
-func _ready():
+func _ready() -> void:
 	top_level = true
-	# Confining Mouse Cursor in the game view so it doesnt get in the way of gameplay
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	arm.add_excluded_object(player.get_rid())
+	rotation_degrees.x = -15.0
+	snap_to_player()
+	if not OS.has_feature("web"):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
-# Handling Camera Movement
-func _unhandled_input(event):
-	if event is InputEventMouseMotion:
-		rotation_degrees.x -= event.relative.y * mouse_sensitivity
-		rotation_degrees.x = clamp(rotation_degrees.x, -60, -0)
-		
-		rotation_degrees.y -= event.relative.x * mouse_sensitivity
-		rotation_degrees.y = wrapf(rotation_degrees.y, 0, 360)
+func snap_to_player() -> void:
+	global_position = player.global_position + Vector3.UP * target_height
+
+func _process(delta: float) -> void:
+	var target := player.global_position + Vector3.UP * target_height
+	if global_position.distance_to(target) > 10.0:
+		global_position = target
+	else:
+		global_position = global_position.lerp(target, 1.0 - exp(-follow_speed * delta))
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		rotation_degrees.x = clampf(rotation_degrees.x - event.relative.y * mouse_sensitivity, -65.0, 45.0)
+		rotation_degrees.y = wrapf(rotation_degrees.y - event.relative.x * mouse_sensitivity, -180.0, 180.0)

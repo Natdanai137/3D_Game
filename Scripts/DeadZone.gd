@@ -10,4 +10,4 @@ extends Area3D
 func _on_body_entered(body):
 	# Checks if player is colliding with the dead zone & reset player position if true
 	if body.is_in_group("Player"):
-		player.global_position = spawn_position.global_position
+		player.reset_to_spawn(spawn_position.global_position)

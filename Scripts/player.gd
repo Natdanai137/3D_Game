@@ -1,114 +1,72 @@
-# ----------------------------------------------------------------------------------- #
-# -------------- FEEL FREE TO USE IN ANY PROJECT, COMMERCIAL OR NON-COMMERCIAL ------ #
-# ---------------------- 3D PLATFORMER CONTROLLER BY SD STUDIOS --------------------- #
-# ---------------------------- ATTRIBUTION NOT REQUIRED ----------------------------- #
-# ----------------------------------------------------------------------------------- #
-
 extends CharacterBody3D
 
-# ---------- VARIABLES ---------- #
-
-@export_category("Player Properties")
-@export var move_speed : float = 6
-@export var jump_force : float = 5
-@export var follow_lerp_factor : float = 4
-@export var jump_limit : int = 2
-
-@export_group("Game Juice")
-@export var jumpStretchSize := Vector3(0.8, 1.2, 0.8)
-
-# Booleans
-var is_grounded = false
-var can_double_jump = false
-
-# Onready Variables
+@export_category("Aof movement")
+@export var move_speed: float = 3.5
+@export var run_speed: float = 6.0
+@export var jump_force: float = 6.0
+@export var acceleration: float = 24.0
+@export var air_acceleration: float = 12.0
+@export var gravity: float = 19.6
+@export var coyote_time: float = 0.10
+@export var jump_buffer: float = 0.12
+@export_range(1, 5) var jump_limit: int = 3
 @onready var model = $CharacterModel
-@onready var animation = $CharacterModel/AnimationPlayer
 @onready var spring_arm = %Gimbal
+@onready var particle_trail: CPUParticles3D = $ParticleTrail
+@onready var footsteps: AudioStreamPlayer3D = $Footsteps
+var floor_grace: float = 0.0
+var buffered_jump: float = 0.0
+var jumps_used: int = 0
 
-@onready var particle_trail = $ParticleTrail
-@onready var footsteps = $Footsteps
-
-# Get the gravity from the project settings to be synced with RigidBody nodes.
-var gravity = ProjectSettings.get_setting("physics/3d/default_gravity") * 2
-
-# ---------- FUNCTIONS ---------- #
-
-func _process(delta):
-	player_animations()
-	get_input(delta)
-	
-	# Smoothly follow player's position
-	spring_arm.position = lerp(spring_arm.position, position, delta * follow_lerp_factor)
-	
-	# Player Rotation
-	if is_moving():
-		var look_direction = Vector2(velocity.z, velocity.x)
-		model.rotation.y = lerp_angle(model.rotation.y, look_direction.angle(), delta * 12)
-	
-	# Check if player is grounded or not
-	is_grounded = true if is_on_floor() else false
-	
-	# Handle Jumping
-	if is_grounded:
-		can_double_jump = true
-	
-	if Input.is_action_just_pressed("jump"):
-		if is_on_floor():
-			perform_jump()
-		elif can_double_jump:
-			if is_moving():
-				perform_flip_jump()
-	
-	velocity.y -= gravity * delta
-
-func perform_jump():
-	AudioManager.jump_sfx.play()
-	AudioManager.jump_sfx.pitch_scale = 1.12
-	
-	jumpTween()
-	# The humen1 model pack has no dedicated jump clip, so "Roll" is reused as the closest match.
-	animation.play("CharacterArmature|Roll")
-	velocity.y = jump_force
-
-func perform_flip_jump():
-	AudioManager.jump_sfx.play()
-	AudioManager.jump_sfx.pitch_scale = 0.8
-	animation.play("CharacterArmature|Roll", -1, 2)
-	velocity.y = jump_force
-	await animation.animation_finished
-	can_double_jump = false
-	animation.play("CharacterArmature|Roll", 0.5)
-
-func is_moving():
-	return abs(velocity.z) > 0 || abs(velocity.x) > 0
-
-func jumpTween():
-	var tween = get_tree().create_tween()
-	tween.tween_property(self, "scale", jumpStretchSize, 0.1)
-	tween.tween_property(self, "scale", Vector3(1,1,1), 0.1)
-
-# Get Player Input
-func get_input(_delta):
-	var move_direction := Vector3.ZERO
-	move_direction.x = Input.get_axis("move_left", "move_right")
-	move_direction.z = Input.get_axis("move_forward", "move_back")
-	
-	# Move The player Towards Spring Arm/Camera Rotation
-	move_direction = move_direction.rotated(Vector3.UP, spring_arm.rotation.y).normalized()
-	velocity = Vector3(move_direction.x * move_speed, velocity.y, move_direction.z * move_speed)
-
+func _physics_process(delta: float) -> void:
+	var controls_active := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if controls_active else Vector2.ZERO
+	var direction := Vector3(input.x, 0, input.y).rotated(Vector3.UP, spring_arm.rotation.y)
+	var running := controls_active and Input.is_action_pressed("sprint")
+	var speed := run_speed if running else move_speed
+	var rate := acceleration if is_on_floor() else air_acceleration
+	velocity.x = move_toward(velocity.x, direction.x * speed, rate * delta)
+	velocity.z = move_toward(velocity.z, direction.z * speed, rate * delta)
+	update_jump_state(delta)
+	if controls_active and Input.is_action_just_pressed("jump"):
+		buffered_jump = jump_buffer
+	if not try_buffered_jump() and not is_on_floor():
+		velocity.y -= gravity * delta
 	move_and_slide()
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed > 0.1:
+		model.rotation.y = lerp_angle(model.rotation.y, atan2(velocity.x, velocity.z), 1.0 - exp(-14.0 * delta))
+	model.animate(delta, horizontal_speed, is_on_floor(), velocity.y, running)
+	particle_trail.emitting = is_on_floor() and horizontal_speed > 4.0
+	footsteps.stream_paused = not (is_on_floor() and horizontal_speed > 0.3)
+	footsteps.pitch_scale = 1.15 if running else 0.8
 
-# Handle Player Animations
-func player_animations():
-	particle_trail.emitting = false
-	footsteps.stream_paused = true
-	
-	if is_on_floor():
-		if is_moving(): # Checks if player is moving
-			animation.play("CharacterArmature|Run", 0.5)
-			particle_trail.emitting = true
-			footsteps.stream_paused = false
-		else:
-			animation.play("CharacterArmature|Idle", 0.5)
+func update_jump_state(delta: float) -> void:
+	if is_on_floor() and velocity.y <= 0.0:
+		jumps_used = 0
+		floor_grace = coyote_time
+	else:
+		floor_grace = maxf(0.0, floor_grace - delta)
+		# Walking off an edge uses the ground jump after the grace window.
+		if floor_grace == 0.0 and jumps_used == 0:
+			jumps_used = 1
+	buffered_jump = maxf(0.0, buffered_jump - delta)
+
+func try_buffered_jump() -> bool:
+	if buffered_jump <= 0.0 or jumps_used >= jump_limit:
+		return false
+	jumps_used += 1
+	velocity.y = jump_force
+	floor_grace = 0.0
+	buffered_jump = 0.0
+	AudioManager.jump_sfx.pitch_scale = 1.0 + (jumps_used - 1) * 0.08
+	AudioManager.jump_sfx.play()
+	return true
+
+func reset_to_spawn(spawn: Vector3) -> void:
+	global_position = spawn
+	velocity = Vector3.ZERO
+	floor_grace = 0.0
+	buffered_jump = 0.0
+	jumps_used = 0
+	spring_arm.snap_to_player()

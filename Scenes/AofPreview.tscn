@@ -1,0 +1,65 @@
+[gd_scene format=3]
+[ext_resource type="PackedScene" path="res://Assets/model/Aof/AofPlayer.tscn" id="1"]
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.065, 0.105, 0.14, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.8, 0.88, 1, 1)
+ambient_light_energy = 0.65
+reflected_light_source = 2
+tonemap_mode = 2
+[sub_resource type="CylinderMesh" id="Plinth"]
+top_radius = 0.72
+bottom_radius = 0.78
+height = 0.12
+radial_segments = 48
+[sub_resource type="StandardMaterial3D" id="PlinthMat"]
+albedo_color = Color(0.16, 0.25, 0.29, 1)
+roughness = 0.8
+[node name="AofPreview" type="Node3D"]
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+[node name="Key" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-35, -35, 0)
+light_color = Color(1, 0.89, 0.77, 1)
+light_energy = 1.4
+shadow_enabled = true
+[node name="Fill" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-20, 145, 0)
+light_color = Color(0.62, 0.79, 1, 1)
+light_energy = 0.8
+[node name="Front" parent="." instance=ExtResource("1")]
+position = Vector3(-0.85, 0.12, 0)
+rotation_degrees = Vector3(0, -15, 0)
+[node name="Back" parent="." instance=ExtResource("1")]
+position = Vector3(0.85, 0.12, 0)
+rotation_degrees = Vector3(0, 155, 0)
+[node name="LeftPlinth" type="MeshInstance3D" parent="."]
+position = Vector3(-0.85, 0.03, 0)
+mesh = SubResource("Plinth")
+material_override = SubResource("PlinthMat")
+[node name="RightPlinth" type="MeshInstance3D" parent="."]
+position = Vector3(0.85, 0.03, 0)
+mesh = SubResource("Plinth")
+material_override = SubResource("PlinthMat")
+[node name="Camera" type="Camera3D" parent="."]
+position = Vector3(0, 2.5, 6)
+rotation_degrees = Vector3(-12, 0, 0)
+projection = 1
+size = 4.3
+current = true
+[node name="Title" type="Label3D" parent="."]
+position = Vector3(0, 2.65, 0)
+text = "A O F"
+font_size = 72
+pixel_size = 0.006
+modulate = Color(1, 0.65, 0.28, 1)
+outline_size = 0
+billboard = 1
+[node name="Subtitle" type="Label3D" parent="."]
+position = Vector3(0, 2.38, 0)
+text = "JUST GO UP!!  /  CHARACTER MODEL"
+font_size = 24
+pixel_size = 0.005
+outline_size = 0
+billboard = 1

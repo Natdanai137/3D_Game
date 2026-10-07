@@ -15,5 +15,5 @@ func _on_body_entered(body):
 		AudioManager.jump_sfx.play()
 		AudioManager.jump_sfx.pitch_scale = 0.6
 		if spawn_position:
-			player.global_position = spawn_position.global_position
+			player.reset_to_spawn(spawn_position.global_position)
 		player.velocity = Vector3.ZERO
